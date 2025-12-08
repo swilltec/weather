@@ -20,12 +20,13 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+GEOIP_PATH = BASE_DIR / "data"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-#l9xijz2rg2*xyl$s1#@i7v#lh2*sjxg8=-3kkyupgxc4gi4st"
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -42,7 +43,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-
     "drf_yasg",
     # Custom
     "core",
@@ -134,17 +134,34 @@ LOGGER = "weather"
 
 
 # Weather API KEYs
-TOMORROW_API_KEY = os.getenv('TOMORROW_API_KEY')
+TOMORROW_API_KEY = os.getenv("TOMORROW_API_KEY")
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%f%z"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework.authentication.SessionAuthentication",
+        "core.authentication.FingerprintAuthentication",
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
-    "DEFAULT_PERMISSION_CLASSES": [],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "DATETIME_FORMAT": DATETIME_FORMAT,
+}
+
+
+#
+
+REDIS_URL = os.getenv("REDIS_URL")
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": REDIS_URL,
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
 }

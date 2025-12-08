@@ -34,12 +34,3 @@ stop:
 
 up:
 	@docker compose up
-
-
-run-format:
-	@docker compose run api sh -c 'ruff format .'
-
-
-run-lint:
-	@docker compose run api sh -c 'ruff check . --fix --select I001'
-

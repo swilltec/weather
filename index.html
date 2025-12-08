@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Weather App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .weather-panel,
+        .chat-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1,
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+            transition: border 0.3s;
+        }
+
+        .search-box input:focus {
+            border-color: #667eea;
+        }
+
+        .search-box button {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+
+        .search-box button:hover {
+            background: #5568d3;
+        }
+
+        .weather-info {
+            text-align: center;
+        }
+
+        .city-name {
+            font-size: 32px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .temperature {
+            font-size: 64px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+
+        .weather-description {
+            font-size: 24px;
+            color: #666;
+            text-transform: capitalize;
+            margin-bottom: 30px;
+        }
+
+        .weather-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .detail-item {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: left;
+        }
+
+        .detail-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .detail-value {
+            color: #333;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 15px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background: #667eea;
+            color: white;
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .bot-message {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .chat-input-box {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-box input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 16px;
+            outline: none;
+        }
+
+        .chat-input-box button {
+            padding: 12px 25px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .error {
+            color: #e74c3c;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+
+            .temperature {
+                font-size: 48px;
+            }
+
+            .city-name {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="weather-panel">
+            <h1>🌤️ Smart Weather</h1>
+            <div class="search-box">
+                <input type="text" id="cityInput" placeholder="Enter city name..." />
+                <button onclick="getWeather()">Search</button>
+            </div>
+            <div id="weatherDisplay"></div>
+        </div>
+
+        <div class="chat-panel">
+            <h2>💬 Weather Assistant</h2>
+            <div class="chat-container">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message bot-message">
+                        Hello! I'm your weather assistant. Ask me anything about the weather!
+                    </div>
+                </div>
+                <div class="chat-input-box">
+                    <input type="text" id="chatInput" placeholder="Type your message..."
+                        onkeypress="handleChatEnter(event)" />
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentWeatherData = null;
+
+        async function getWeather() {
+            const city = document.getElementById('cityInput').value;
+            const display = document.getElementById('weatherDisplay');
+
+            if (!city) {
+                display.innerHTML = '<p class="error">Please enter a city name</p>';
+                return;
+            }
+
+            display.innerHTML = '<p style="text-align: center;">Loading...</p>';
+
+            try {
+                const API_KEY = 'demo'; // In production, use a real API key
+                const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API_KEY}&units=metric`);
+
+                // For demo purposes, simulate weather data
+                if (!response.ok) {
+                    throw new Error('City not found');
+                }
+
+                // Simulated data for demo
+                currentWeatherData = {
+                    city: city,
+                    temp: Math.floor(Math.random() * 30 + 10),
+                    description: ['Sunny', 'Cloudy', 'Rainy', 'Partly Cloudy'][Math.floor(Math.random() * 4)],
+                    humidity: Math.floor(Math.random() * 40 + 40),
+                    windSpeed: Math.floor(Math.random() * 20 + 5),
+                    feels_like: Math.floor(Math.random() * 30 + 8),
+                    pressure: Math.floor(Math.random() * 50 + 1000)
+                };
+
+                displayWeather(currentWeatherData);
+            } catch (error) {
+                display.innerHTML = `<p class="error">${error.message}</p>`;
+            }
+        }
+
+        function displayWeather(data) {
+            const display = document.getElementById('weatherDisplay');
+            display.innerHTML = `
+                <div class="weather-info">
+                    <div class="city-name">${data.city}</div>
+                    <div class="temperature">${data.temp}°C</div>
+                    <div class="weather-description">${data.description}</div>
+                    <div class="weather-details">
+                        <div class="detail-item">
+                            <div class="detail-label">Feels Like</div>
+                            <div class="detail-value">${data.feels_like}°C</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Humidity</div>
+                            <div class="detail-value">${data.humidity}%</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Wind Speed</div>
+                            <div class="detail-value">${data.windSpeed} km/h</div>
+                        </div>
+                        <div class="detail-item">
+                            <div class="detail-label">Pressure</div>
+                            <div class="detail-value">${data.pressure} hPa</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            addMessage(message, 'user');
+            input.value = '';
+
+            setTimeout(() => {
+                const response = generateResponse(message);
+                addMessage(response, 'bot');
+            }, 500);
+        }
+
+        function addMessage(text, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender === 'user' ? 'user-message' : 'bot-message'}`;
+            messageDiv.textContent = text;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function generateResponse(message) {
+            const lowerMessage = message.toLowerCase();
+
+            if (lowerMessage.includes('temperature') || lowerMessage.includes('temp')) {
+                if (currentWeatherData) {
+                    return `The current temperature in ${currentWeatherData.city} is ${currentWeatherData.temp}°C, and it feels like ${currentWeatherData.feels_like}°C.`;
+                }
+                return 'Please search for a city first to get temperature information.';
+            }
+
+            if (lowerMessage.includes('humidity')) {
+                if (currentWeatherData) {
+                    return `The humidity in ${currentWeatherData.city} is ${currentWeatherData.humidity}%.`;
+                }
+                return 'Please search for a city first to get humidity information.';
+            }
+
+            if (lowerMessage.includes('wind')) {
+                if (currentWeatherData) {
+                    return `The wind speed in ${currentWeatherData.city} is ${currentWeatherData.windSpeed} km/h.`;
+                }
+                return 'Please search for a city first to get wind information.';
+            }
+
+            if (lowerMessage.includes('weather')) {
+                if (currentWeatherData) {
+                    return `The weather in ${currentWeatherData.city} is ${currentWeatherData.description} with a temperature of ${currentWeatherData.temp}°C.`;
+                }
+                return 'Please search for a city first to get weather information.';
+            }
+
+            if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
+                return 'Hello! How can I help you with weather information today?';
+            }
+
+            return 'I can help you with weather information! Try asking about temperature, humidity, wind speed, or general weather conditions. Make sure to search for a city first!';
+        }
+
+        function handleChatEnter(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Allow Enter key on city search
+        document.getElementById('cityInput').addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                getWeather();
+            }
+        });
+
+        // Initialize the agent on page load.
+        const fpPromise = import('https://fpjscdn.net/v3/A9U5bfJFay8CB5BY0fxQ')
+            .then(FingerprintJS => FingerprintJS.load())
+
+        // Get the visitorId when you need it.
+        fpPromise
+            .then(fp => fp.get())
+            .then(result => {
+                const visitorId = result.visitorId
+                console.log(result)
+                console.log(visitorId)
+
+                // Optional: Display on page for verification
+                document.getElementById('visitor-id').textContent = visitorId
+            })
+            .catch(error => {
+                console.error('Fingerprint error:', error)
+            })
+    </script>
+</body>
+
+</html>

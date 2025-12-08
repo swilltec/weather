@@ -17,9 +17,9 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import include, path
-
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
+from rest_framework.permissions import AllowAny
 
 # import accounts
 schema_view = get_schema_view(
@@ -28,8 +28,9 @@ schema_view = get_schema_view(
         default_version="v1",
         description=(""),
     ),
-    public=False,
-    permission_classes=[],
+    public=True,
+    permission_classes=[AllowAny],
+    authentication_classes=[],
 )
 
 urlpatterns = [
@@ -44,5 +45,5 @@ urlpatterns = [
         schema_view.with_ui("redoc", cache_timeout=0),
         name="schema-redoc",
     ),
-    path("api/auth/", include("rest_framework.urls", namespace="rest_framework")),
-    ]
+    path("api/v1/", include("core.api.urls", namespace="core")),
+]

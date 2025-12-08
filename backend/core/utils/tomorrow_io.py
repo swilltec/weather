@@ -4,6 +4,7 @@ import json
 import requests
 from django.core.cache import cache
 
+
 # request per second, 25 per hour and 500 per day
 class TomorrowIO:
     def __init__(
