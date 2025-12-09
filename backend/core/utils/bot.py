@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict, List, Optional
 import openai
 from django.conf import settings
 
-from backend.core.utils.weather_api import OpenWeatherService
+from core.utils.weather_api import OpenWeatherService
 
 
 class WeatherAIService:
@@ -50,9 +50,10 @@ You have access to real-time weather data through functions. Use them when users
         max_tokens: Optional[int] = None,
     ):
         """Initialize the Weather AI service."""
-        self.openai_api_key = api_key
-
-        openai.api_key = self.openai_api_key
+        self.client = openai.OpenAI(
+            api_key=api_key,
+            base_url="https://api.poe.com/v1",
+        )
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -238,29 +239,34 @@ You have access to real-time weather data through functions. Use them when users
         return {"role": "system", "content": self.WEATHER_SYSTEM_PROMPT}
 
     def generate_response(self, messages: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Generate a response from the AI.
+        cleaned_messages = []
+        expecting_tool_result = False
 
-        Returns:
-            Dict containing:
-                - response: str (the assistant's message)
-                - tool_calls: List[Dict] (any function calls made)
-                - tool_results: List[Dict] (results from function calls)
-                - needs_continuation: bool (if more API calls needed)
-        """
+        for msg in messages:
+            if msg["role"] == "tool":
+                # Only allow tool messages if last assistant message had tool_calls
+                if not expecting_tool_result:
+                    # Skip invalid tool message
+                    continue
+                cleaned_messages.append(msg)
+                expecting_tool_result = False
+            else:
+                # Track if assistant is calling a tool
+                if msg["role"] == "assistant" and msg.get("tool_calls"):
+                    expecting_tool_result = True
+                cleaned_messages.append(msg)
+
         api_params = {
             "model": self.model,
-            "messages": messages,
+            "messages": cleaned_messages,
             "temperature": self.temperature,
+            "tools": self.function_schemas,
         }
 
         if self.max_tokens:
             api_params["max_tokens"] = self.max_tokens
 
-        if self.function_schemas:
-            api_params["tools"] = self.function_schemas
-
-        response = openai.chat.completions.create(**api_params)
+        response = self.client.chat.completions.create(**api_params)
         message = response.choices[0].message
 
         result = {
@@ -268,28 +274,26 @@ You have access to real-time weather data through functions. Use them when users
             "tool_calls": [],
             "tool_results": [],
             "needs_continuation": False,
-            "message_obj": message,  # Full message object for saving
+            "message_obj": message,
         }
 
-        # Handle function calls
         if message.tool_calls:
-            result["needs_continuation"] = True
-
+            # Execute all tool calls
             for tool_call in message.tool_calls:
                 function_name = tool_call.function.name
                 function_args = json.loads(tool_call.function.arguments)
 
-                tool_call_data = {
-                    "id": tool_call.id,
-                    "type": tool_call.type,
-                    "function": {
-                        "name": function_name,
-                        "arguments": tool_call.function.arguments,
-                    },
-                }
-                result["tool_calls"].append(tool_call_data)
+                result["tool_calls"].append(
+                    {
+                        "id": tool_call.id,
+                        "type": tool_call.type,
+                        "function": {
+                            "name": function_name,
+                            "arguments": tool_call.function.arguments,
+                        },
+                    }
+                )
 
-                # Execute function
                 if function_name in self.functions:
                     function_result = self.functions[function_name](**function_args)
 
@@ -301,5 +305,29 @@ You have access to real-time weather data through functions. Use them when users
                             "result": function_result,
                         }
                     )
+
+            # Add assistant message with tool calls to messages
+            cleaned_messages.append({
+                "role": "assistant",
+                "content": message.content,
+                "tool_calls": result["tool_calls"]
+            })
+
+            # Add tool results to messages
+            for tool_result in result["tool_results"]:
+                cleaned_messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_result["tool_call_id"],
+                    "content": json.dumps(tool_result["result"])
+                })
+
+            # Recursively call generate_response to get the final answer
+            final_result = self.generate_response(cleaned_messages)
+            
+            # Merge tool information with final result
+            final_result["tool_calls"] = result["tool_calls"] + final_result.get("tool_calls", [])
+            final_result["tool_results"] = result["tool_results"] + final_result.get("tool_results", [])
+            
+            return final_result
 
         return result

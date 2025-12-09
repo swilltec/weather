@@ -61,6 +61,8 @@ class ConversationSerializer(serializers.ModelSerializer):
             "datetime_updated",
         ]
         read_only_fields = [
+            "client",
+            "is_active",
             "started_at",
             "last_message_at",
             "message_count",
@@ -94,7 +96,6 @@ class MessageSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "conversation",
-            "message_type",
             "content",
             "timestamp",
             "related_city",
@@ -102,7 +103,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "datetime_created",
             "datetime_updated",
         ]
-        read_only_fields = ["timestamp", "datetime_created", "datetime_updated"]
+        read_only_fields = ["timestamp", "related_city", "datetime_created", "datetime_updated"]
 
 
 class AlertSerializer(serializers.Serializer):
