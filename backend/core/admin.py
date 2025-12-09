@@ -1,11 +1,5 @@
-from core.models import (
-    City,
-    Client,
-    Conversation,
-    Message,
-    UserPreference,
-    WeatherAlert,
-)
+from core.models import (City, Client, Conversation, Message, UserPreference,
+                         WeatherAlert)
 from django.contrib import admin
 
 

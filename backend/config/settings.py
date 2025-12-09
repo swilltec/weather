@@ -165,3 +165,19 @@ CACHES = {
         },
     }
 }
+
+
+WEATHER_API = os.getenv("WEATHER_API")
+POE_API_KEY = os.getenv("POE_API_KEY")
+
+
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Token": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "Token-based authentication. Use: Token <your token>",
+        },
+    },
+}

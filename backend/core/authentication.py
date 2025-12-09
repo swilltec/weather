@@ -1,6 +1,7 @@
 from common.utils import get_city
 from core.models import Client
-from rest_framework.authentication import BaseAuthentication
+from rest_framework.authentication import (BaseAuthentication,
+                                           get_authorization_header)
 from rest_framework.exceptions import AuthenticationFailed
 
 
@@ -17,11 +18,16 @@ class FingerprintAuthentication(BaseAuthentication):
             "fingerprint"
         )
 
+        # Fallback: use entire Authorization header string
         if not fingerprint:
-            raise AuthenticationFailed("Fingerprint header missing")
+            auth = get_authorization_header(request).decode().strip()
+            if not auth:
+                raise AuthenticationFailed(
+                    "Fingerprint header or Authorization missing"
+                )
+            fingerprint = auth
 
-
-        client, created = Client.objects.get_or_create(fingerprint=fingerprint)
+        client, _ = Client.objects.get_or_create(fingerprint=fingerprint)
 
         client.update_activity()
 
